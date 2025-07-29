@@ -115,12 +115,12 @@ suite('嵌套注释扩展测试', () => {
 			assert.ok(originalText.includes('<div>'));
 			assert.ok(originalText.includes('<!-- <div>这是一段代码</div> -->'));
 
-			// 第一次执行切换注释命令 - 直接添加嵌套注释
+			// 第一次执行切换注释命令 - 直接添加嵌套注释（紧凑格式）
 			await vscode.commands.executeCommand('nested-comments.toggleComment');
 			const firstResult = document.getText().trim();
 			console.log('第一次结果:', firstResult);
-			assert.ok(firstResult.startsWith('<!--'));
-			assert.ok(firstResult.endsWith('-->'));
+			assert.ok(firstResult.startsWith('<!-- '), '应该以紧凑格式开始');
+			assert.ok(firstResult.endsWith(' -->'), '应该以紧凑格式结束');
 			assert.ok(firstResult.includes('<div>'), '应该包含原始div标签');
 			assert.ok(firstResult.includes('/* <div>这是一段代码</div> */'), '内部HTML注释应该被转换为JS注释');
 			assert.ok(!firstResult.includes('<!-- <div>这是一段代码</div> -->'), '不应该再有内部HTML注释');

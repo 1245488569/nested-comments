@@ -345,7 +345,7 @@ function addNestedCommentToLine(lineText: string, status: any, _languageId: stri
  */
 function hasNestedComment(text: string): boolean {
   const lines = text.split('\n');
-  if (lines.length < 2) {
+  if (lines.length < 1) {
     return false;
   }
 
@@ -360,8 +360,20 @@ function hasNestedComment(text: string): boolean {
     if (firstLine === '<!--' && lastLine === '-->') {
       // 独立行格式：取中间的内容
       innerContent = lines.slice(1, -1).join('\n');
+    } else if (firstLine.startsWith('<!-- ') && lastLine.endsWith(' -->')) {
+      // 紧凑格式：<!-- content -->
+      if (lines.length === 1) {
+        // 单行紧凑格式
+        innerContent = firstLine.substring(5, firstLine.length - 4);
+      } else {
+        // 多行紧凑格式：<!-- firstLine ... lastLine -->
+        const firstContent = firstLine.substring(5); // 移除 "<!-- "
+        const lastContent = lastLine.substring(0, lastLine.length - 4); // 移除 " -->"
+        const middleContent = lines.slice(1, -1).join('\n');
+        innerContent = [firstContent, middleContent, lastContent].join('\n');
+      }
     } else {
-      // 内联格式：从注释标记中提取内容
+      // 其他内联格式：从注释标记中提取内容
       innerContent = text.substring(
         text.indexOf('<!--') + 4,
         text.lastIndexOf('-->')
@@ -494,22 +506,47 @@ function addNestedBlockComment(text: string, document: vscode.TextDocument): str
 
   // 将内部的HTML注释转换为JS注释
   const convertedContent = convertInternalHtmlCommentsToJs(text);
+  const convertedLines = convertedContent.split('\n');
 
   if (document.languageId === 'html' || document.languageId === 'vue' ||
     document.languageId === 'javascriptreact' || document.languageId === 'typescriptreact' ||
     document.languageId === 'xml') {
-    // HTML风格块注释 - 使用独立行的格式，内部HTML注释已转换为JS注释
+    // HTML风格块注释 - 使用紧凑格式（开始和结束标记与内容在同一行）
     const result = [];
-    result.push(baseIndent + '<!--');
-    convertedContent.split('\n').forEach(line => result.push(line));
-    result.push(baseIndent + '-->');
+
+    if (convertedLines.length === 1) {
+      // 单行内容：<!-- content -->
+      result.push(baseIndent + '<!-- ' + convertedLines[0].trim() + ' -->');
+    } else {
+      // 多行内容：<!-- firstLine
+      //           middleLines
+      //           lastLine -->
+      result.push(baseIndent + '<!-- ' + convertedLines[0]);
+      for (let i = 1; i < convertedLines.length - 1; i++) {
+        result.push(convertedLines[i]);
+      }
+      result.push(convertedLines[convertedLines.length - 1] + ' -->');
+    }
+
     return result.join('\n');
   } else {
-    // JS风格块注释 - 使用独立行的格式
+    // JS风格块注释 - 使用紧凑格式
     const result = [];
-    result.push(baseIndent + '/*');
-    convertedContent.split('\n').forEach(line => result.push(line));
-    result.push(baseIndent + ' */');
+
+    if (convertedLines.length === 1) {
+      // 单行内容：/* content */
+      result.push(baseIndent + '/* ' + convertedLines[0].trim() + ' */');
+    } else {
+      // 多行内容：/* firstLine
+      //           middleLines
+      //           lastLine */
+      result.push(baseIndent + '/* ' + convertedLines[0]);
+      for (let i = 1; i < convertedLines.length - 1; i++) {
+        result.push(convertedLines[i]);
+      }
+      result.push(convertedLines[convertedLines.length - 1] + ' */');
+    }
+
     return result.join('\n');
   }
 }
@@ -570,36 +607,58 @@ function addNestedComment(text: string, _document: vscode.TextDocument): string 
  */
 function removeNestedComment(text: string): string {
   const lines = text.split('\n');
+  const firstLine = lines[0].trim();
+  const lastLine = lines[lines.length - 1].trim();
 
-  // 检查是否是独立行格式的块注释
-  if (lines.length >= 3 &&
-    lines[0].trim().startsWith('<!--') &&
-    lines[lines.length - 1].trim().startsWith('-->')) {
+  let innerContent;
+
+  // 检查是否是紧凑格式的块注释
+  if (firstLine.startsWith('<!-- ') && lastLine.endsWith(' -->')) {
+    if (lines.length === 1) {
+      // 单行紧凑格式：<!-- content -->
+      innerContent = firstLine.substring(5, firstLine.length - 4);
+    } else {
+      // 多行紧凑格式：<!-- firstLine ... lastLine -->
+      const result = [];
+
+      // 第一行：移除 "<!-- "
+      const firstContent = firstLine.substring(5);
+      result.push(firstContent);
+
+      // 中间行：保持原样
+      for (let i = 1; i < lines.length - 1; i++) {
+        result.push(lines[i]);
+      }
+
+      // 最后一行：移除 " -->" 但保持原始缩进
+      const lastLineOriginal = lines[lines.length - 1];
+      const lastContent = lastLineOriginal.substring(0, lastLineOriginal.length - 4);
+      result.push(lastContent);
+
+      innerContent = result.join('\n');
+    }
+  } else if (lines.length >= 3 &&
+    lines[0].trim() === '<!--' &&
+    lines[lines.length - 1].trim() === '-->') {
     // 独立行格式：移除第一行和最后一行
-    const innerContent = lines.slice(1, -1).join('\n');
-
-    // 将内部的JS注释转换回HTML注释
-    const restoredContent = convertInternalJsCommentsToHtml(innerContent);
-
-    return restoredContent;
+    innerContent = lines.slice(1, -1).join('\n');
   } else {
-    // 兼容旧的内联格式
-    const firstLine = lines[0].replace(/^(\s*)<!--\s*/, '$1');
-    const lastLine = lines[lines.length - 1].replace(/\s*-->\s*$/, '');
+    // 兼容其他内联格式
+    const firstLineContent = lines[0].replace(/^(\s*)<!--\s*/, '$1');
+    const lastLineContent = lines[lines.length - 1].replace(/\s*-->\s*$/, '');
     const middleLines = lines.slice(1, -1);
 
-    let innerContent;
-    if (lastLine.trim() === '') {
-      innerContent = [firstLine, ...middleLines].join('\n');
+    if (lastLineContent.trim() === '') {
+      innerContent = [firstLineContent, ...middleLines].join('\n');
     } else {
-      innerContent = [firstLine, ...middleLines, lastLine].join('\n');
+      innerContent = [firstLineContent, ...middleLines, lastLineContent].join('\n');
     }
-
-    // 将内部的JS注释转换回HTML注释
-    const restoredContent = convertInternalJsCommentsToHtml(innerContent);
-
-    return restoredContent;
   }
+
+  // 将内部的JS注释转换回HTML注释
+  const restoredContent = convertInternalJsCommentsToHtml(innerContent);
+
+  return restoredContent;
 }
 
 /**
