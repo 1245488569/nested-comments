@@ -1,8 +1,8 @@
 {
-  "name": "nested-comments",
-  "displayName": "Nested Comments",
+  "name": "nested-comments-xt",
+  "displayName": "Nested Comments XT",
   "description": "在Vue和React项目中支持嵌套注释，解决已注释代码无法再次注释的问题，支持多行块注释",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "repository": {
     "type": "git",
     "url": "https://github.com/1245488569/nested-comments.git"
@@ -29,6 +29,7 @@
   "categories": [
     "Other"
   ],
+  "icon": "images/icon.png",
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
