@@ -14,7 +14,9 @@ export default {
     return {
       title: "测试标题",
       // JS注释
-      content: "测试内容"
+      content: "测试内容",
+      content2: "测试内容",
+      content3: "测试内容"
     };
   }
 };

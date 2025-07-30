@@ -5,11 +5,11 @@
   "version": "0.0.3",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/nested-comments.git"
+    "url": "https://github.com/1245488569/nested-comments.git"
   },
-  "publisher": "your-publisher-name",
+  "publisher": "coderxt",
   "author": {
-    "name": "Your Name"
+    "name": "coderxt"
   },
   "license": "MIT",
   "keywords": [
